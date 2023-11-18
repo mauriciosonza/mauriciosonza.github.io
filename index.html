@@ -1,8 +1,409 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Endless Shooter with Lives, Enemy Counter, Monsters Avoided, Monsters Killed, Levels, and Random High-Level Enemies</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
 
+    canvas {
+      display: block;
+      background: #f0f0f0;
+      margin: auto;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #infoContainer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      background-color: #333;
+      color: #fff;
+      box-sizing: border-box;
+    }
+
+    #infoTable {
+      margin: auto;
+      border-collapse: collapse;
+      width: 60%;
+    }
+
+    #infoTable td, #infoTable th {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+
+    #infoTable th {
+      background-color: #333;
+      color: white;
+    }
+  </style>
+</head>
 <body>
-    <img width="300px" src="https://cdn.dribbble.com/users/1791559/screenshots/4465351/wip.gif"></body></img>
-</body>
+  <canvas id="gameCanvas"></canvas>
+  <div id="infoContainer">
+    <table id="infoTable">
+      <tr>
+        <th>Level</th>
+        <th>Lives</th>
+        <th>Monsters Avoided</th>
+        <th>Monsters Killed</th>
+        <th>Time</th>
+        <th>Fire Rate</th>
+      </tr>
+      <tr>
+        <td id="playerLevel">1</td>
+        <td id="lives">5</td>
+        <td id="enemyCounter">0</td>
+        <td id="monsterKilledCounter">0</td>
+        <td id="timerCounter">00:00:00.0000</td>
+        <td id="fireRate">10</td>
+      </tr>
+    </table>
+  </div>
 
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = window.innerWidth;
+    const infoContainerHeight = document.getElementById("infoContainer").offsetHeight;
+
+    // Adjust canvas height for mobile devices
+    if (window.innerWidth <= 768) {
+      
+      canvas.height = window.innerHeight - infoContainerHeight - 30;
+    } else {
+      canvas.height = window.innerHeight - infoContainerHeight;
+    }
+
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height - 30,
+      size: 20,
+      color: "#00F",
+      speed: 5,
+      lives: 5,
+      attack: 1,
+      fireRate: 10,
+      level: 1,
+      monstersKilled: 0,
+    };
+
+    const projectiles = [];
+    const enemies = [];
+    const circles = [];
+    let enemiesAvoided = 0;
+    let gameStartTime;
+    let gameTimer;
+
+    const enemyColors = {
+      veryEasyGreen: { color: "#00FF00", lives: 1 },
+      easyLimeGreen: { color: "#33FF00", lives: 2 },
+      moderatelyEasyChartreuse: { color: "#66FF00", lives: 3 },
+      moderateYellowGreen: { color: "#99FF00", lives: 4 },
+      moderatelyDifficultSpringGreen: { color: "#CCFF00", lives: 5 },
+      difficultYellow: { color: "#FFFF00", lives: 6 },
+      veryDifficultGold: { color: "#FFCC00", lives: 7 },
+      challengingOrange: { color: "#FF9900", lives: 8 },
+      veryChallengingDarkOrange: { color: "#FF6600", lives: 9 },
+      extremelyChallengingRed: { color: "#FF3300", lives: 10 },
+    };
+
+    const enemyColorsByLives = [null, "#00FF00", "#33FF00", "#66FF00", "#99FF00", "#CCFF00", "#FFFF00", "#FFCC00", "#FF9900", "#FF6600", "#FF3300"];
+
+    function createEnemy() {
+      const randomColor = Object.keys(enemyColors)[Math.floor(Math.random() * Object.keys(enemyColors).length)];
+      const enemyInfo = enemyColors[randomColor];
+      const enemyX = Math.random() * canvas.width;
+      enemies.push({ x: enemyX, y: 0, size: 20, color: enemyInfo.color, speed: 4, life: enemyInfo.lives });
+    }
+
+    function createCircle() {
+      const circleColors = ["#FF0000", "#00008B"];
+      const circleColor = circleColors[Math.floor(Math.random() * circleColors.length)];
+      const circleX = Math.random() * canvas.width;
+
+      let numberInside;
+      if (circleColor === "#FF0000") {
+        numberInside = Math.floor(Math.random() * 5) + 1;
+      } else {
+        numberInside = Math.floor(Math.random() * 4) + 2;
+      }
+
+      circles.push({ x: circleX, y: 0, size: 20, color: circleColor, numberInside: numberInside, speed: 4 });
+    }
+
+    function handleCircleCollision(circle) {
+      if (circle.color === "#FF0000") {
+        player.fireRate *= circle.numberInside;
+      } else if (circle.color === "#00008B") {
+        player.fireRate = Math.max(player.fireRate / circle.numberInside, 10);
+      }
+
+      circles.splice(circles.indexOf(circle), 1);
+    }
+
+    function startGameTimer() {
+      gameStartTime = new Date().getTime();
+      gameTimer = setInterval(updateTimerCounter, 10);
+    }
+
+    function formatTime(milliseconds) {
+      const date = new Date(milliseconds);
+      const hours = date.getUTCHours().toString().padStart(2, "0");
+      const minutes = date.getUTCMinutes().toString().padStart(2, "0");
+      const seconds = date.getUTCSeconds().toString().padStart(2, "0");
+      const millisecondsStr = date.getUTCMilliseconds().toString().padStart(4, "0");
+      return `${hours}:${minutes}:${seconds}.${millisecondsStr}`;
+    }
+
+    function updateTimerCounter() {
+      const currentTime = new Date().getTime();
+      const elapsedTime = currentTime - gameStartTime;
+      const formattedTime = formatTime(elapsedTime);
+      document.getElementById("timerCounter").textContent = "Time: " + formattedTime;
+    }
+
+    function stopGameTimer() {
+      clearInterval(gameTimer);
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function update() {
+      if (player.lives <= 0) {
+        stopGameTimer();
+        const elapsedTime = document.getElementById("timerCounter").textContent.replace("Time: ", "");
+        alert("Game Over!\nTotal Time: " + elapsedTime);
+        location.reload();
+      }
+
+      if (!gameStartTime) {
+        startGameTimer();
+      }
+
+      let isDragging = false;
+  let dragStartX = 0;
+
+  // Set a scaling factor for drag movement
+  const dragScaleFactor = 0.005; // Adjust as needed
+
+  // Touch start event listener
+  canvas.addEventListener("touchstart", (e) => {
+    // Prevent the default behavior to avoid scrolling
+    e.preventDefault();
+
+    // Check if the touch is within the player's hexagon
+    const touch = e.touches[0];
+    if (
+      touch.clientX >= player.x - player.size &&
+      touch.clientX <= player.x + player.size &&
+      touch.clientY >= player.y - player.size &&
+      touch.clientY <= player.y + player.size
+    ) {
+      isDragging = true;
+      dragStartX = touch.clientX;
+    }
+  });
+
+  // Touch move event listener
+  canvas.addEventListener("touchmove", (e) => {
+    if (isDragging) {
+      // Prevent the default behavior to avoid scrolling
+      e.preventDefault();
+
+      // Calculate the horizontal movement with scaling
+      const touch = e.touches[0];
+      const deltaX = (touch.clientX - dragStartX) * dragScaleFactor;
+
+      // Update player's x position within canvas bounds
+      player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x + deltaX));
+
+      // Update the starting position for the next move event
+      dragStartX = touch.clientX;
+    }
+  });
+
+  // Touch end event listener
+  canvas.addEventListener("touchend", () => {
+    isDragging = false;
+  });
+
+      if (keys["ArrowLeft"] && player.x > 0) {
+        player.x -= player.speed;
+      }
+      if (keys["ArrowRight"] && player.x < canvas.width - player.size) {
+        player.x += player.speed;
+      }
+
+      if (Math.random() < player.fireRate / 1000) {
+        projectiles.push({ x: player.x + player.size / 2, y: player.y, size: 5, color: "#000", speed: 10, life: 1 });
+      }
+
+      if (Math.random() < 0.01 && Math.random() < 0.75) {
+        createCircle();
+      }
+
+      circles.forEach(circle => {
+        circle.y += circle.speed;
+        if (
+          player.x < circle.x + circle.size / 2 &&
+          player.x + player.size > circle.x - circle.size / 2 &&
+          player.y < circle.y + circle.size / 2 &&
+          player.y + player.size > circle.y - circle.size / 2
+        ) {
+          handleCircleCollision(circle);
+        }
+      });
+
+      projectiles.forEach(projectile => {
+        projectile.y -= projectile.speed;
+      });
+
+      projectiles.forEach((projectile, index) => {
+        enemies.forEach(enemy => {
+          if (
+            projectile.x < enemy.x + enemy.size &&
+            projectile.x + projectile.size > enemy.x &&
+            projectile.y < enemy.y + enemy.size &&
+            projectile.y + projectile.size > enemy.y
+          ) {
+            enemy.life--;
+
+            if(enemy.life > 0){ 
+              console.log(enemy);
+              console.log(enemyColorsByLives);
+              enemy.color = enemyColorsByLives[enemy.life];
+            }
+
+            if (enemy.life <= 0) {
+              enemies.splice(enemies.indexOf(enemy), 1);
+              player.monstersKilled++;
+            }
+
+            projectiles.splice(index, 1);
+          }
+        });
+
+        if (projectile.y < 0) {
+          projectiles.splice(index, 1);
+        }
+      });
+
+      circles.forEach((circle, index) => {
+        if (circle.y + circle.size / 2 > canvas.height) {
+          circles.splice(index, 1);
+        }
+      });
+
+      if (Math.random() < 0.02) {
+        if (Math.random() < 0.2) {
+          createEnemy();
+        } else {
+          const enemyX = Math.random() * canvas.width;
+          enemies.push({ x: enemyX, y: 0, size: 20, color: "#0F0", speed: 4, life: 1 });
+        }
+      }
+
+      if (Math.random() < 0.01 && Math.random() < 0.75) {
+        const circleX = Math.random() * canvas.width;
+        createCircle();
+      }
+
+      enemies.forEach(enemy => {
+        enemy.y += enemy.speed;
+        if (
+          player.x < enemy.x + enemy.size &&
+          player.x + player.size > enemy.x &&
+          player.y < enemy.y + enemy.size &&
+          player.y + player.size > enemy.y
+        ) {
+          player.lives--;
+          enemies.splice(enemies.indexOf(enemy), 1);
+        }
+      });
+
+      enemies.forEach((enemy, index) => {
+        if (enemy.y + enemy.size > canvas.height) {
+          enemiesAvoided++;
+          enemies.splice(index, 1);
+        }
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw player as a hexagon
+      ctx.beginPath();
+      ctx.moveTo(player.x + player.size * Math.cos(0), player.y + player.size * Math.sin(0));
+      for (let i = 1; i <= 6; i++) {
+        ctx.lineTo(
+          player.x + player.size * Math.cos((i * 2 * Math.PI) / 6),
+          player.y + player.size * Math.sin((i * 2 * Math.PI) / 6)
+        );
+      }
+      ctx.fillStyle = player.color;
+      ctx.fill();
+      ctx.closePath();
+
+      ctx.fillStyle = "#000";
+      projectiles.forEach(projectile => {
+        ctx.fillRect(projectile.x, projectile.y, projectile.size, projectile.size);
+      });
+
+      enemies.forEach(enemy => {
+        ctx.fillStyle = enemy.color;
+        ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+      });
+
+      circles.forEach(circle => {
+        ctx.beginPath();
+        ctx.arc(circle.x, circle.y, circle.size / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = circle.color;
+        ctx.fill();
+        ctx.stroke();
+        ctx.closePath();
+
+        ctx.fillStyle = "#FFF";
+        ctx.font = "14px Arial"; // Adjusted font size
+        ctx.fillText(circle.numberInside.toString(), circle.x - circle.size / 4, circle.y + circle.size / 4);
+      });
+
+      document.getElementById("playerLevel").textContent = "Level: " + player.level;
+      document.getElementById("lives").textContent = "Lives: " + player.lives;
+      document.getElementById("enemyCounter").textContent = "Monsters Avoided: " + enemiesAvoided;
+      document.getElementById("monsterKilledCounter").textContent = "Monsters Killed: " + player.monstersKilled;
+      document.getElementById("fireRate").textContent = "Fire Rate: " + player.fireRate;
+    }
+
+    const keys = {};
+    window.addEventListener("keydown", e => {
+      keys[e.key] = true;
+    });
+
+    window.addEventListener("keyup", e => {
+      keys[e.key] = false;
+    });
+
+    gameLoop();
+  </script>
+</body>
 </html>
