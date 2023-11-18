@@ -387,11 +387,11 @@
         ctx.fillText(circle.numberInside.toString(), circle.x - circle.size / 4, circle.y + circle.size / 4);
       });
 
-      document.getElementById("playerLevel").textContent = "Level: " + player.level;
-      document.getElementById("lives").textContent = "Lives: " + player.lives;
-      document.getElementById("enemyCounter").textContent = "Monsters Avoided: " + enemiesAvoided;
-      document.getElementById("monsterKilledCounter").textContent = "Monsters Killed: " + player.monstersKilled;
-      document.getElementById("fireRate").textContent = "Fire Rate: " + player.fireRate;
+      document.getElementById("playerLevel").textContent = player.level;
+      document.getElementById("lives").textContent = player.lives;
+      document.getElementById("enemyCounter").textContent = enemiesAvoided;
+      document.getElementById("monsterKilledCounter").textContent =  player.monstersKilled;
+      document.getElementById("fireRate").textContent =  player.fireRate;
     }
 
     const keys = {};
