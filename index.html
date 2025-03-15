@@ -12,20 +12,6 @@
     <button onclick="checkTournament()">Consultar</button>
     <p id="result"></p>
 
-    <h1>Rocket League Tournaments</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Info</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody id="tournament-body">
-        </tbody>
-    </table>
-
-    <!--
     <h2>Lista Completa de Torneios</h2>
     <table border="1">
         <tr>
@@ -75,8 +61,7 @@
         <tr><td>28/06/2025</td><td>Sábado</td></tr>
         <tr><td>31/12/2025</td><td>Quarta-feira</td></tr>
     </table>
-    -->
-    
+
     <script>
         function isInSequence(dateStr) {
             const startDate = new Date("2025-02-28"); // Start date
@@ -105,40 +90,6 @@
                 resultText.textContent = "Não tem torneio";
             }
         }
-
-        async function fetchTournamentPage() {
-            const url = "https://rocket-league.com/tournaments";
-            try {
-                const response = await fetch(url, {
-                    headers: {
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                    }
-                });
-                const text = await response.text();
-                parseTournaments(text);
-            } catch (error) {
-                console.error("Error fetching the page:", error);
-            }
-        }
-
-        function parseTournaments(htmlContent) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlContent, "text/html");
-            const tournaments = doc.querySelectorAll("li.rlg-tournament__item");
-            const tableBody = document.getElementById("tournament-body");
-            
-            tournaments.forEach(tournament => {
-                const time = tournament.querySelector(".rlg-tournament__item-time")?.textContent.trim() || "N/A";
-                const info = tournament.querySelector(".rlg-tournament__item-info h2")?.textContent.trim() || "N/A";
-                const status = tournament.querySelector(".rlg-tournament__item-info span")?.textContent.trim() || "N/A";
-                
-                const row = document.createElement("tr");
-                row.innerHTML = `<td>${time}</td><td>${info}</td><td>${status}</td>`;
-                tableBody.appendChild(row);
-            });
-        }
-
-        fetchTournamentPage();
     </script>
 </body>
 </html>
